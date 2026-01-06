@@ -209,22 +209,15 @@
             margin: 5px 0;
         }
         .captcha {
-            background-color: #333;
-            padding: 10px;
-            border-radius: 5px;
             margin: 10px 0;
-            text-align: center;
         }
-        .captcha img {
-            width: 200px;
-            height: 50px;
-            background-color: #fff;
-            color: #000;
-            display: inline-block;
-            line-height: 50px;
-            font-size: 1.5em;
-            font-weight: bold;
-            border-radius: 5px;
+        .verification {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #4b0082;
+            text-align: center;
         }
     </style>
 </head>
@@ -250,20 +243,18 @@
                 <input type="password" id="signup-password" placeholder="Password">
                 <input type="text" id="signup-signature" placeholder="Signature (optional)">
                 <div class="captcha">
-                    <p>Enter the code below to verify you're not a bot:</p>
-                    <div id="captcha-code" class="captcha-code">AB12</div> <!-- Simulated CAPTCHA -->
-                    <input type="text" id="captcha-input" placeholder="Enter CAPTCHA code">
+                    <p>Simple CAPTCHA: What is 2 + 2? <input type="text" id="captcha-input" placeholder="Answer"></p>
                 </div>
                 <button onclick="signUp()">Sign Up</button>
                 <p>Already have an account? <button onclick="showSignIn()">Sign In</button></p>
                 <div id="signup-error" class="error"></div>
             </div>
-            <div id="verify-form" style="display: none;">
+            <div id="verification-form" style="display: none;">
                 <h2>Email Verification</h2>
-                <p>Check your email for a verification code (simulated: use '123456').</p>
-                <input type="text" id="verify-code" placeholder="Verification Code">
+                <p>Check your email for a verification code.</p>
+                <input type="text" id="verification-code" placeholder="Enter Code">
                 <button onclick="verifyEmail()">Verify</button>
-                <div id="verify-error" class="error"></div>
+                <div id="verification-error" class="error"></div>
             </div>
         </div>
         <div class="user-info" id="user-info" style="display: none;">
@@ -315,155 +306,3 @@
             <!-- Threads will be displayed here -->
         </div>
     </div>
-
-    <script>
-        // Load data from local storage
-        let users = JSON.parse(localStorage.getItem('mibe-users')) || [];
-        let threads = JSON.parse(localStorage.getItem('mibe-threads')) || [];
-        let currentUser = localStorage.getItem('mibe-current-user');
-        let currentCategory = 'all';
-        let pendingUser = null; // For email verification
-
-        function updateUI() {
-            const authSection = document.getElementById('auth-section');
-            const userInfo = document.getElementById('user-info');
-            const threadForm = document.getElementById('thread-form');
-            const userProfile = document.getElementById('user-profile');
-            if (currentUser) {
-                authSection.classList.add('hidden');
-                userInfo.style.display = 'block';
-                document.getElementById('current-user').textContent = currentUser;
-                threadForm.classList.remove('hidden');
-                userProfile.style.display = 'none';
-            } else {
-                authSection.classList.remove('hidden');
-                userInfo.style.display = 'none';
-                threadForm.classList.add('hidden');
-                userProfile.style.display = 'none';
-            }
-            displayThreads();
-        }
-
-        function showSignUp() {
-            document.getElementById('login-form').style.display = 'none';
-            document.getElementById('signup-form').style.display = 'block';
-            document.getElementById('verify-form').style.display = 'none';
-        }
-
-        function showSignIn() {
-            document.getElementById('signup-form').style.display = 'none';
-            document.getElementById('verify-form').style.display = 'none';
-            document.getElementById('login-form').style.display = 'block';
-        }
-
-        function signUp() {
-            const username = document.getElementById('signup-username').value.trim();
-            const email = document.getElementById('signup-email').value.trim();
-            const password = document.getElementById('signup-password').value;
-            const signature = document.getElementById('signup-signature').value;
-            const captchaInput = document.getElementById('captcha-input').value;
-            const errorDiv = document.getElementById('signup-error');
-            if (!username || !email || !password || captchaInput !== 'AB12') { // Simulated CAPTCHA check
-                errorDiv.textContent = 'Please fill in all fields and enter correct CAPTCHA.';
-                return;
-            }
-            if (users.find(user => user.username === username || user.email === email)) {
-                errorDiv.textContent = 'Username or email already exists.';
-                return;
-            }
-            pendingUser = { username, email, password, signature, posts: 0, joined: new Date().toLocaleDateString(), avatar: username.charAt(0).toUpperCase(), verified: false };
-            document.getElementById('signup-form').style.display = 'none';
-            document.getElementById('verify-form').style.display = 'block';
-            errorDiv.textContent = '';
-        }
-
-        function verifyEmail() {
-            const code = document.getElementById('verify-code').value;
-            const errorDiv = document.getElementById('verify-error');
-            if (code !== '123456') { // Simulated verification code
-                errorDiv.textContent = 'Invalid verification code.';
-                return;
-            }
-            pendingUser.verified = true;
-            users.push(pendingUser);
-            localStorage.setItem('mibe-users', JSON.stringify(users));
-            currentUser = pendingUser.username;
-            localStorage.setItem('mibe-current-user', currentUser);
-            pendingUser = null;
-            document.getElementById('verify-code').value = '';
-            errorDiv.textContent = '';
-            updateUI();
-        }
-
-        function signIn() {
-            const username = document.getElementById('login-username').value.trim();
-            const password = document.getElementById('login-password').value;
-            const errorDiv = document.getElementById('login-error');
-            const user = users.find(user => user.username === username && user.password === password);
-            if (!user) {
-                errorDiv.textContent = 'Invalid username or password.';
-                return;
-            }
-            if (!user.verified) {
-                errorDiv.textContent = 'Account not verified. Please check your email.';
-                return;
-            }
-            currentUser = username;
-            localStorage.setItem('mibe-current-user', currentUser);
-            document.getElementById('login-username').value = '';
-            document.getElementById('login-password').value = '';
-            errorDiv.textContent = '';
-            updateUI();
-        }
-
-        function logOut() {
-            currentUser = null;
-            localStorage.removeItem('mibe-current-user');
-            updateUI();
-        }
-
-        function viewProfile() {
-            const user = users.find(u => u.username === currentUser);
-            if (user) {
-                document.getElementById('profile-avatar').textContent = user.avatar;
-                document.getElementById('profile-username').textContent = user.username;
-                document.getElementById('profile-email').textContent = user.email;
-                document.getElementById('profile-rank').textContent = getRank(user.posts);
-                document.getElementById('profile-posts').textContent = user.posts;
-                document.getElementById('profile-joined').textContent = user.joined;
-                document.getElementById('profile-signature').textContent = user.signature || 'None';
-                document.getElementById('user-profile').style.display = 'block';
-            }
-        }
-
-        function editProfile() {
-            // Simple edit: prompt for signature
-            const newSig = prompt('Edit Signature:', users.find(u => u.username === currentUser).signature);
-            if (newSig !== null) {
-                users.find(u => u.username === currentUser).signature = newSig;
-                localStorage.setItem('mibe-users', JSON.stringify(users));
-                viewProfile();
-            }
-        }
-
-        function getRank(posts) {
-            if (posts < 10) return 'Newbie';
-            if (posts < 50) return 'Member';
-            if (posts < 100) return 'Senior Member';
-            return 'Expert';
-        }
-
-        function filterCategory(category) {
-            currentCategory = category;
-            displayThreads();
-        }
-
-        function searchThreads() {
-            const query = document.getElementById('search-input').value.toLowerCase();
-            displayThreads(query);
-        }
-
-        function displayThreads(searchQuery = '') {
-            const list = document.getElementById('threads-list');
-            list.innerHTML = '';
-            let filteredThreads = threads.filter(thread => currentCategory ===
