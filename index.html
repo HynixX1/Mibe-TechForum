@@ -215,13 +215,16 @@
             margin: 10px 0;
             text-align: center;
         }
-        .verification {
-            background-color: #2a2a2a;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #4b0082;
-            display: none;
+        .captcha img {
+            width: 200px;
+            height: 50px;
+            background-color: #fff;
+            color: #000;
+            display: inline-block;
+            line-height: 50px;
+            font-size: 1.5em;
+            font-weight: bold;
+            border-radius: 5px;
         }
     </style>
 </head>
@@ -236,10 +239,6 @@
                 <h2>Sign In</h2>
                 <input type="text" id="login-username" placeholder="Username">
                 <input type="password" id="login-password" placeholder="Password">
-                <div class="captcha">
-                    <p>Enter the code: <span id="captcha-code"></span></p>
-                    <input type="text" id="captcha-input" placeholder="Captcha">
-                </div>
                 <button onclick="signIn()">Sign In</button>
                 <p>Don't have an account? <button onclick="showSignUp()">Sign Up</button></p>
                 <div id="login-error" class="error"></div>
@@ -250,17 +249,22 @@
                 <input type="email" id="signup-email" placeholder="Email">
                 <input type="password" id="signup-password" placeholder="Password">
                 <input type="text" id="signup-signature" placeholder="Signature (optional)">
+                <div class="captcha">
+                    <p>Enter the code below to verify you're not a bot:</p>
+                    <div id="captcha-code" class="captcha-code">AB12</div> <!-- Simulated CAPTCHA -->
+                    <input type="text" id="captcha-input" placeholder="Enter CAPTCHA code">
+                </div>
                 <button onclick="signUp()">Sign Up</button>
                 <p>Already have an account? <button onclick="showSignIn()">Sign In</button></p>
                 <div id="signup-error" class="error"></div>
             </div>
-        </div>
-        <div class="verification" id="verification-section">
-            <h2>Email Verification</h2>
-            <p>Check your email for the verification code.</p>
-            <input type="text" id="verification-code" placeholder="Enter Code">
-            <button onclick="verifyEmail()">Verify</button>
-            <div id="verification-error" class="error"></div>
+            <div id="verify-form" style="display: none;">
+                <h2>Email Verification</h2>
+                <p>Check your email for a verification code (simulated: use '123456').</p>
+                <input type="text" id="verify-code" placeholder="Verification Code">
+                <button onclick="verifyEmail()">Verify</button>
+                <div id="verify-error" class="error"></div>
+            </div>
         </div>
         <div class="user-info" id="user-info" style="display: none;">
             <p>Welcome, <span id="current-user"></span>! <button onclick="logOut()">Log Out</button> <button onclick="viewProfile()">View Profile</button></p>
@@ -318,52 +322,37 @@
         let threads = JSON.parse(localStorage.getItem('mibe-threads')) || [];
         let currentUser = localStorage.getItem('mibe-current-user');
         let currentCategory = 'all';
-        let pendingUser = null;
-        let verificationCode = null;
-
-        function generateCaptcha() {
-            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-            document.getElementById('captcha-code').textContent = code;
-            return code;
-        }
+        let pendingUser = null; // For email verification
 
         function updateUI() {
             const authSection = document.getElementById('auth-section');
             const userInfo = document.getElementById('user-info');
             const threadForm = document.getElementById('thread-form');
             const userProfile = document.getElementById('user-profile');
-            const verificationSection = document.getElementById('verification-section');
-            if (pendingUser) {
+            if (currentUser) {
                 authSection.classList.add('hidden');
-                verificationSection.style.display = 'block';
-                userInfo.style.display = 'none';
-                threadForm.classList.add('hidden');
-                userProfile.style.display = 'none';
-            } else if (currentUser) {
-                authSection.classList.add('hidden');
-                verificationSection.style.display = 'none';
                 userInfo.style.display = 'block';
                 document.getElementById('current-user').textContent = currentUser;
                 threadForm.classList.remove('hidden');
                 userProfile.style.display = 'none';
             } else {
                 authSection.classList.remove('hidden');
-                verificationSection.style.display = 'none';
                 userInfo.style.display = 'none';
                 threadForm.classList.add('hidden');
                 userProfile.style.display = 'none';
             }
             displayThreads();
-            generateCaptcha();
         }
 
         function showSignUp() {
             document.getElementById('login-form').style.display = 'none';
             document.getElementById('signup-form').style.display = 'block';
+            document.getElementById('verify-form').style.display = 'none';
         }
 
         function showSignIn() {
             document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('verify-form').style.display = 'none';
             document.getElementById('login-form').style.display = 'block';
         }
 
@@ -372,13 +361,10 @@
             const email = document.getElementById('signup-email').value.trim();
             const password = document.getElementById('signup-password').value;
             const signature = document.getElementById('signup-signature').value;
+            const captchaInput = document.getElementById('captcha-input').value;
             const errorDiv = document.getElementById('signup-error');
-            if (!username || !email || !password) {
-                errorDiv.textContent = 'Please fill in all fields.';
-                return;
-            }
-            if (!email.includes('@')) {
-                errorDiv.textContent = 'Invalid email.';
+            if (!username || !email || !password || captchaInput !== 'AB12') { // Simulated CAPTCHA check
+                errorDiv.textContent = 'Please fill in all fields and enter correct CAPTCHA.';
                 return;
             }
             if (users.find(user => user.username === username || user.email === email)) {
@@ -386,57 +372,46 @@
                 return;
             }
             pendingUser = { username, email, password, signature, posts: 0, joined: new Date().toLocaleDateString(), avatar: username.charAt(0).toUpperCase(), verified: false };
-            verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-            alert(`Verification code sent to ${email}: ${verificationCode}`); // Simulate email send
-            document.getElementById('signup-username').value = '';
-            document.getElementById('signup-email').value = '';
-            document.getElementById('signup-password').value = '';
-            document.getElementById('signup-signature').value = '';
+            document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('verify-form').style.display = 'block';
             errorDiv.textContent = '';
-            updateUI();
         }
 
         function verifyEmail() {
-            const code = document.getElementById('verification-code').value.trim();
-            const errorDiv = document.getElementById('verification-error');
-            if (code === verificationCode) {
-                pendingUser.verified = true;
-                users.push(pendingUser);
-                localStorage.setItem('mibe-users', JSON.stringify(users));
-                currentUser = pendingUser.username;
-                localStorage.setItem('mibe-current-user', currentUser);
-                pendingUser = null;
-                verificationCode = null;
-                document.getElementById('verification-code').value = '';
-                errorDiv.textContent = '';
-                updateUI();
-            } else {
+            const code = document.getElementById('verify-code').value;
+            const errorDiv = document.getElementById('verify-error');
+            if (code !== '123456') { // Simulated verification code
                 errorDiv.textContent = 'Invalid verification code.';
+                return;
             }
+            pendingUser.verified = true;
+            users.push(pendingUser);
+            localStorage.setItem('mibe-users', JSON.stringify(users));
+            currentUser = pendingUser.username;
+            localStorage.setItem('mibe-current-user', currentUser);
+            pendingUser = null;
+            document.getElementById('verify-code').value = '';
+            errorDiv.textContent = '';
+            updateUI();
         }
 
         function signIn() {
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
-            const captchaInput = document.getElementById('captcha-input').value.trim();
-            const captchaCode = document.getElementById('captcha-code').textContent;
             const errorDiv = document.getElementById('login-error');
-            if (captchaInput !== captchaCode) {
-                errorDiv.textContent = 'Invalid captcha.';
-                generateCaptcha();
+            const user = users.find(user => user.username === username && user.password === password);
+            if (!user) {
+                errorDiv.textContent = 'Invalid username or password.';
                 return;
             }
-            const user = users.find(user => user.username === username && user.password === password && user.verified);
-            if (!user) {
-                errorDiv.textContent = 'Invalid username, password, or unverified account.';
-                generateCaptcha();
+            if (!user.verified) {
+                errorDiv.textContent = 'Account not verified. Please check your email.';
                 return;
             }
             currentUser = username;
             localStorage.setItem('mibe-current-user', currentUser);
             document.getElementById('login-username').value = '';
             document.getElementById('login-password').value = '';
-            document.getElementById('captcha-input').value = '';
             errorDiv.textContent = '';
             updateUI();
         }
@@ -464,4 +439,31 @@
         function editProfile() {
             // Simple edit: prompt for signature
             const newSig = prompt('Edit Signature:', users.find(u => u.username === currentUser).signature);
-            if (newSig
+            if (newSig !== null) {
+                users.find(u => u.username === currentUser).signature = newSig;
+                localStorage.setItem('mibe-users', JSON.stringify(users));
+                viewProfile();
+            }
+        }
+
+        function getRank(posts) {
+            if (posts < 10) return 'Newbie';
+            if (posts < 50) return 'Member';
+            if (posts < 100) return 'Senior Member';
+            return 'Expert';
+        }
+
+        function filterCategory(category) {
+            currentCategory = category;
+            displayThreads();
+        }
+
+        function searchThreads() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            displayThreads(query);
+        }
+
+        function displayThreads(searchQuery = '') {
+            const list = document.getElementById('threads-list');
+            list.innerHTML = '';
+            let filteredThreads = threads.filter(thread => currentCategory ===
