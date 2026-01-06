@@ -28,12 +28,29 @@
             max-width: 800px;
             margin: 0 auto;
         }
+        .auth-section {
+            background-color: #2a2a2a; /* Dark gray */
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #4b0082; /* Purple border */
+        }
+        .auth-section.hidden {
+            display: none;
+        }
+        .user-info {
+            text-align: center;
+            margin-bottom: 10px;
+        }
         .thread-form, .reply-form {
             background-color: #2a2a2a; /* Dark gray */
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 20px;
             border: 1px solid #4b0082; /* Purple border */
+        }
+        .thread-form.hidden, .reply-form.hidden {
+            display: none;
         }
         input, textarea, button {
             width: 100%;
@@ -63,6 +80,10 @@
             margin-top: 0;
             color: #ba55d3; /* Light purple */
         }
+        .thread-author, .reply-author {
+            font-size: 0.9em;
+            color: #888;
+        }
         .media {
             max-width: 100%;
             border-radius: 5px;
@@ -79,6 +100,10 @@
             border-radius: 5px;
             margin-bottom: 10px;
         }
+        .error {
+            color: #ff6b6b;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -87,7 +112,28 @@
         <p>Share tech threads with photos and videos for better help!</p>
     </header>
     <div class="container">
-        <div class="thread-form">
+        <div class="auth-section" id="auth-section">
+            <div id="login-form">
+                <h2>Sign In</h2>
+                <input type="text" id="login-username" placeholder="Username">
+                <input type="password" id="login-password" placeholder="Password">
+                <button onclick="signIn()">Sign In</button>
+                <p>Don't have an account? <button onclick="showSignUp()">Sign Up</button></p>
+                <div id="login-error" class="error"></div>
+            </div>
+            <div id="signup-form" style="display: none;">
+                <h2>Sign Up</h2>
+                <input type="text" id="signup-username" placeholder="Username">
+                <input type="password" id="signup-password" placeholder="Password">
+                <button onclick="signUp()">Sign Up</button>
+                <p>Already have an account? <button onclick="showSignIn()">Sign In</button></p>
+                <div id="signup-error" class="error"></div>
+            </div>
+        </div>
+        <div class="user-info" id="user-info" style="display: none;">
+            <p>Welcome, <span id="current-user"></span>! <button onclick="logOut()">Log Out</button></p>
+        </div>
+        <div class="thread-form" id="thread-form">
             <h2>Create a New Thread</h2>
             <input type="text" id="thread-title" placeholder="Thread Title (e.g., My phone stuck on logo)">
             <textarea id="thread-content" placeholder="Describe your issue or share info..."></textarea>
@@ -100,8 +146,82 @@
     </div>
 
     <script>
-        // Load threads from local storage
+        // Load data from local storage
+        let users = JSON.parse(localStorage.getItem('mibe-users')) || [];
         let threads = JSON.parse(localStorage.getItem('mibe-threads')) || [];
+        let currentUser = localStorage.getItem('mibe-current-user');
+
+        function updateUI() {
+            const authSection = document.getElementById('auth-section');
+            const userInfo = document.getElementById('user-info');
+            const threadForm = document.getElementById('thread-form');
+            if (currentUser) {
+                authSection.classList.add('hidden');
+                userInfo.style.display = 'block';
+                document.getElementById('current-user').textContent = currentUser;
+                threadForm.classList.remove('hidden');
+            } else {
+                authSection.classList.remove('hidden');
+                userInfo.style.display = 'none';
+                threadForm.classList.add('hidden');
+            }
+            displayThreads();
+        }
+
+        function showSignUp() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('signup-form').style.display = 'block';
+        }
+
+        function showSignIn() {
+            document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
+        }
+
+        function signUp() {
+            const username = document.getElementById('signup-username').value.trim();
+            const password = document.getElementById('signup-password').value;
+            const errorDiv = document.getElementById('signup-error');
+            if (!username || !password) {
+                errorDiv.textContent = 'Please fill in all fields.';
+                return;
+            }
+            if (users.find(user => user.username === username)) {
+                errorDiv.textContent = 'Username already exists.';
+                return;
+            }
+            users.push({ username, password });
+            localStorage.setItem('mibe-users', JSON.stringify(users));
+            currentUser = username;
+            localStorage.setItem('mibe-current-user', currentUser);
+            document.getElementById('signup-username').value = '';
+            document.getElementById('signup-password').value = '';
+            errorDiv.textContent = '';
+            updateUI();
+        }
+
+        function signIn() {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            const errorDiv = document.getElementById('login-error');
+            const user = users.find(user => user.username === username && user.password === password);
+            if (!user) {
+                errorDiv.textContent = 'Invalid username or password.';
+                return;
+            }
+            currentUser = username;
+            localStorage.setItem('mibe-current-user', currentUser);
+            document.getElementById('login-username').value = '';
+            document.getElementById('login-password').value = '';
+            errorDiv.textContent = '';
+            updateUI();
+        }
+
+        function logOut() {
+            currentUser = null;
+            localStorage.removeItem('mibe-current-user');
+            updateUI();
+        }
 
         function displayThreads() {
             const list = document.getElementById('threads-list');
@@ -111,27 +231,32 @@
                 threadDiv.className = 'thread';
                 threadDiv.innerHTML = `
                     <h3>${thread.title}</h3>
+                    <p class="thread-author">Posted by: ${thread.author}</p>
                     <p>${thread.content}</p>
                     ${thread.media ? `<img src="${thread.media}" class="media" alt="Uploaded media">` : ''}
                     <div class="replies">
                         ${thread.replies.map(reply => `
                             <div class="reply">
+                                <p class="reply-author">Replied by: ${reply.author}</p>
                                 <p>${reply.content}</p>
                                 ${reply.media ? `<img src="${reply.media}" class="media" alt="Uploaded media">` : ''}
                             </div>
                         `).join('')}
                     </div>
+                    ${currentUser ? `
                     <div class="reply-form">
                         <textarea placeholder="Reply with text or upload media..."></textarea>
                         <input type="file" accept="image/*,video/*">
                         <button onclick="addReply(${index})">Reply</button>
                     </div>
+                    ` : ''}
                 `;
                 list.appendChild(threadDiv);
             });
         }
 
         function createThread() {
+            if (!currentUser) return;
             const title = document.getElementById('thread-title').value;
             const content = document.getElementById('thread-content').value;
             const mediaInput = document.getElementById('thread-media');
@@ -140,7 +265,7 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     media = e.target.result;
-                    threads.push({ title, content, media, replies: [] });
+                    threads.push({ title, content, media, author: currentUser, replies: [] });
                     localStorage.setItem('mibe-threads', JSON.stringify(threads));
                     displayThreads();
                     document.getElementById('thread-title').value = '';
@@ -149,7 +274,7 @@
                 };
                 reader.readAsDataURL(mediaInput.files[0]);
             } else {
-                threads.push({ title, content, media, replies: [] });
+                threads.push({ title, content, media, author: currentUser, replies: [] });
                 localStorage.setItem('mibe-threads', JSON.stringify(threads));
                 displayThreads();
                 document.getElementById('thread-title').value = '';
@@ -158,6 +283,7 @@
         }
 
         function addReply(threadIndex) {
+            if (!currentUser) return;
             const threadDiv = document.querySelectorAll('.thread')[threadIndex];
             const textarea = threadDiv.querySelector('textarea');
             const mediaInput = threadDiv.querySelector('input[type="file"]');
@@ -167,7 +293,7 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     media = e.target.result;
-                    threads[threadIndex].replies.push({ content, media });
+                    threads[threadIndex].replies.push({ content, media, author: currentUser });
                     localStorage.setItem('mibe-threads', JSON.stringify(threads));
                     displayThreads();
                     textarea.value = '';
@@ -175,15 +301,15 @@
                 };
                 reader.readAsDataURL(mediaInput.files[0]);
             } else {
-                threads[threadIndex].replies.push({ content, media });
+                threads[threadIndex].replies.push({ content, media, author: currentUser });
                 localStorage.setItem('mibe-threads', JSON.stringify(threads));
                 displayThreads();
                 textarea.value = '';
             }
         }
 
-        // Initial display
-        displayThreads();
+        // Initial setup
+        updateUI();
     </script>
 </body>
 </html>
