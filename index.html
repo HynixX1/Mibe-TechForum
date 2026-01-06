@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mibe - Tech Forum</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a; /* Dark black */
+            color: #e0e0e0; /* Light gray text */
+            margin: 0;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            background-color: #4b0082; /* Purple */
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .thread-form, .reply-form {
+            background-color: #2a2a2a; /* Dark gray */
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #4b0082; /* Purple border */
+        }
+        input, textarea, button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #4b0082;
+            border-radius: 5px;
+            background-color: #333;
+            color: #e0e0e0;
+        }
+        button {
+            background-color: #4b0082;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #6a0dad; /* Lighter purple */
+        }
+        .thread {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #4b0082;
+        }
+        .thread h3 {
+            margin-top: 0;
+            color: #ba55d3; /* Light purple */
+        }
+        .media {
+            max-width: 100%;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .replies {
+            margin-top: 15px;
+            padding-left: 20px;
+            border-left: 2px solid #4b0082;
+        }
+        .reply {
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>mibe</h1>
+        <p>Share tech threads with photos and videos for better help!</p>
+    </header>
+    <div class="container">
+        <div class="thread-form">
+            <h2>Create a New Thread</h2>
+            <input type="text" id="thread-title" placeholder="Thread Title (e.g., My phone stuck on logo)">
+            <textarea id="thread-content" placeholder="Describe your issue or share info..."></textarea>
+            <input type="file" id="thread-media" accept="image/*,video/*">
+            <button onclick="createThread()">Post Thread</button>
+        </div>
+        <div id="threads-list">
+            <!-- Threads will be displayed here -->
+        </div>
+    </div>
+
+    <script>
+        // Load threads from local storage
+        let threads = JSON.parse(localStorage.getItem('mibe-threads')) || [];
+
+        function displayThreads() {
+            const list = document.getElementById('threads-list');
+            list.innerHTML = '';
+            threads.forEach((thread, index) => {
+                const threadDiv = document.createElement('div');
+                threadDiv.className = 'thread';
+                threadDiv.innerHTML = `
+                    <h3>${thread.title}</h3>
+                    <p>${thread.content}</p>
+                    ${thread.media ? `<img src="${thread.media}" class="media" alt="Uploaded media">` : ''}
+                    <div class="replies">
+                        ${thread.replies.map(reply => `
+                            <div class="reply">
+                                <p>${reply.content}</p>
+                                ${reply.media ? `<img src="${reply.media}" class="media" alt="Uploaded media">` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="reply-form">
+                        <textarea placeholder="Reply with text or upload media..."></textarea>
+                        <input type="file" accept="image/*,video/*">
+                        <button onclick="addReply(${index})">Reply</button>
+                    </div>
+                `;
+                list.appendChild(threadDiv);
+            });
+        }
+
+        function createThread() {
+            const title = document.getElementById('thread-title').value;
+            const content = document.getElementById('thread-content').value;
+            const mediaInput = document.getElementById('thread-media');
+            let media = null;
+            if (mediaInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    media = e.target.result;
+                    threads.push({ title, content, media, replies: [] });
+                    localStorage.setItem('mibe-threads', JSON.stringify(threads));
+                    displayThreads();
+                    document.getElementById('thread-title').value = '';
+                    document.getElementById('thread-content').value = '';
+                    mediaInput.value = '';
+                };
+                reader.readAsDataURL(mediaInput.files[0]);
+            } else {
+                threads.push({ title, content, media, replies: [] });
+                localStorage.setItem('mibe-threads', JSON.stringify(threads));
+                displayThreads();
+                document.getElementById('thread-title').value = '';
+                document.getElementById('thread-content').value = '';
+            }
+        }
+
+        function addReply(threadIndex) {
+            const threadDiv = document.querySelectorAll('.thread')[threadIndex];
+            const textarea = threadDiv.querySelector('textarea');
+            const mediaInput = threadDiv.querySelector('input[type="file"]');
+            const content = textarea.value;
+            let media = null;
+            if (mediaInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    media = e.target.result;
+                    threads[threadIndex].replies.push({ content, media });
+                    localStorage.setItem('mibe-threads', JSON.stringify(threads));
+                    displayThreads();
+                    textarea.value = '';
+                    mediaInput.value = '';
+                };
+                reader.readAsDataURL(mediaInput.files[0]);
+            } else {
+                threads[threadIndex].replies.push({ content, media });
+                localStorage.setItem('mibe-threads', JSON.stringify(threads));
+                displayThreads();
+                textarea.value = '';
+            }
+        }
+
+        // Initial display
+        displayThreads();
+    </script>
+</body>
+</html>
